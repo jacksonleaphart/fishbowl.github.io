@@ -400,6 +400,26 @@ tbody td.td-r{text-align:right;font-variant-numeric:tabular-nums}
       <div style="position:relative;height:280px"><canvas id="waiverPicksChart"></canvas></div>
     </div>
   </div>
+
+  <!-- Injury Impact Chart -->
+  <div class="chart-card" style="margin-bottom:18px">
+    <div class="cc-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+      <span>&#x1F915; Estimated Points Lost to Injury / Unavailability</span>
+      <span style="font-size:9px;color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">PPG (healthy games only) × weeks missed — excludes suspensions</span>
+    </div>
+    <div style="position:relative;height:260px"><canvas id="injuryChart"></canvas></div>
+    <div id="injuryDropDetail" style="margin-top:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px"></div>
+  </div>
+
+  <!-- Cards Chart -->
+  <div class="chart-card" style="margin-bottom:18px">
+    <div class="cc-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+      <span>&#x1F7E8;&#x1F7E5; Points Lost to Cards (Yellow −1 · Red −3)</span>
+      <span style="font-size:9px;color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">Active squad players only — hover for top offenders</span>
+    </div>
+    <div style="position:relative;height:240px"><canvas id="cardsChart"></canvas></div>
+    <div id="cardsDetail" style="margin-top:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px"></div>
+  </div>
 </div>
 
 <!-- ══════════════════ PROFILES ══════════════════ -->
@@ -2883,6 +2903,249 @@ function buildCharts(){
       }
     }
   });
+
+  // ── INJURY & CARDS CHARTS ──
+  buildInjuryChart();
+  buildCardsChart();
+}
+
+// ── INJURY DATA (PPG × weeks missed, status i/n/d only, u excluded) ──
+const INJURY_DATA = {
+  "Change Name":         {"total_pts_lost":219.6,"h1_pts_lost":142.5,"h2_pts_lost":77.1,"total_igm":55,"top_players":[{"player":"Branthwaite","pts_lost":60.8,"weeks":19,"ppg":3.2},{"player":"Gabriel","pts_lost":40.5,"weeks":6,"ppg":6.74},{"player":"Bruno G.","pts_lost":37.2,"weeks":7,"ppg":5.31},{"player":"Tavernier","pts_lost":16.6,"weeks":4,"ppg":4.15},{"player":"Ødegaard","pts_lost":15.4,"weeks":5,"ppg":3.08}]},
+  "Cucurellas shampoo":  {"total_pts_lost":352.4,"h1_pts_lost":160.2,"h2_pts_lost":192.2,"total_igm":100,"top_players":[{"player":"Grealish","pts_lost":63.2,"weeks":16,"ppg":3.95},{"player":"Aina","pts_lost":55.8,"weeks":15,"ppg":3.72},{"player":"Solanke","pts_lost":42.7,"weeks":16,"ppg":2.67},{"player":"A.Becker","pts_lost":42.0,"weeks":12,"ppg":3.5},{"player":"Saka","pts_lost":36.6,"weeks":7,"ppg":5.23}]},
+  "Gunha":               {"total_pts_lost":131.7,"h1_pts_lost":52.6,"h2_pts_lost":79.1,"total_igm":35,"top_players":[{"player":"Gvardiol","pts_lost":74.6,"weeks":17,"ppg":4.39},{"player":"B.Fernandes","pts_lost":20.1,"weeks":3,"ppg":6.71},{"player":"Delap","pts_lost":11.7,"weeks":7,"ppg":1.67},{"player":"Semenyo","pts_lost":5.8,"weeks":1,"ppg":5.77},{"player":"Hall","pts_lost":5.3,"weeks":2,"ppg":2.63}]},
+  "Hwang Hee Chan Fan":  {"total_pts_lost":212.2,"h1_pts_lost":115.8,"h2_pts_lost":96.4,"total_igm":66,"top_players":[{"player":"Dorgu","pts_lost":36.5,"weeks":10,"ppg":3.65},{"player":"Rodrigo","pts_lost":32.9,"weeks":10,"ppg":3.29},{"player":"Tete","pts_lost":29.5,"weeks":8,"ppg":3.68},{"player":"Robinson","pts_lost":26.6,"weeks":9,"ppg":2.96},{"player":"Wissa","pts_lost":18.5,"weeks":13,"ppg":1.42}]},
+  "Luca and the Rats":   {"total_pts_lost":222.2,"h1_pts_lost":88.6,"h2_pts_lost":133.7,"total_igm":57,"top_players":[{"player":"Rúben","pts_lost":39.1,"weeks":9,"ppg":4.35},{"player":"Muñoz","pts_lost":38.9,"weeks":8,"ppg":4.86},{"player":"Aït-Nouri","pts_lost":24.7,"weeks":7,"ppg":3.53},{"player":"Stach","pts_lost":23.6,"weeks":5,"ppg":4.72},{"player":"Wirtz","pts_lost":15.2,"weeks":4,"ppg":3.79}]},
+  "Seskoffender":        {"total_pts_lost":172.0,"h1_pts_lost":114.9,"h2_pts_lost":57.0,"total_igm":54,"top_players":[{"player":"Livramento","pts_lost":27.8,"weeks":8,"ppg":3.47},{"player":"Frimpong","pts_lost":27.0,"weeks":9,"ppg":3.0},{"player":"James","pts_lost":19.8,"weeks":5,"ppg":3.97},{"player":"Marmoush","pts_lost":19.6,"weeks":7,"ppg":2.8},{"player":"White","pts_lost":15.0,"weeks":4,"ppg":3.75}]},
+  "Sometime maybe sheet":{"total_pts_lost":229.3,"h1_pts_lost":89.4,"h2_pts_lost":139.9,"total_igm":69,"top_players":[{"player":"Kudus","pts_lost":75.0,"weeks":19,"ppg":3.95},{"player":"Calafiori","pts_lost":21.8,"weeks":5,"ppg":4.36},{"player":"De Ligt","pts_lost":19.9,"weeks":6,"ppg":3.31},{"player":"Pope","pts_lost":17.8,"weeks":5,"ppg":3.56},{"player":"Iwobi","pts_lost":17.8,"weeks":5,"ppg":3.55}]},
+  "Sonnie":              {"total_pts_lost":259.6,"h1_pts_lost":157.5,"h2_pts_lost":102.1,"total_igm":84,"top_players":[{"player":"Isak","pts_lost":58.6,"weeks":20,"ppg":2.93},{"player":"Havertz","pts_lost":51.0,"weeks":17,"ppg":3.0},{"player":"Sarr","pts_lost":30.3,"weeks":7,"ppg":4.33},{"player":"Wood","pts_lost":30.1,"weeks":11,"ppg":2.73},{"player":"Estêvão","pts_lost":21.1,"weeks":8,"ppg":2.64}]},
+  "Strikersfc":          {"total_pts_lost":278.8,"h1_pts_lost":66.2,"h2_pts_lost":212.6,"total_igm":71,"top_players":[{"player":"De Ligt","pts_lost":62.9,"weeks":19,"ppg":3.31},{"player":"J.Timber","pts_lost":46.2,"weeks":9,"ppg":5.14},{"player":"Ekitiké","pts_lost":40.2,"weeks":9,"ppg":4.46},{"player":"Romero","pts_lost":27.7,"weeks":7,"ppg":3.96},{"player":"Murillo","pts_lost":19.9,"weeks":6,"ppg":3.32}]},
+  "The Blues":           {"total_pts_lost":141.2,"h1_pts_lost":74.9,"h2_pts_lost":66.3,"total_igm":41,"top_players":[{"player":"Palmer","pts_lost":35.1,"weeks":8,"ppg":4.38},{"player":"Burn","pts_lost":19.2,"weeks":6,"ppg":3.21},{"player":"Mateta","pts_lost":14.7,"weeks":4,"ppg":3.68},{"player":"Martinez","pts_lost":11.2,"weeks":3,"ppg":3.75},{"player":"Xhaka","pts_lost":10.9,"weeks":3,"ppg":3.65}]}
+};
+
+// ── CARDS DATA (Yellow −1, Red −3, played players only) ──
+const CARDS_DATA = {
+  "Change Name":         {"yellows":65,"reds":1,"total_pts_lost":68,"top_offenders":[{"player":"Romero","yellows":7,"reds":1,"pts":10},{"player":"Thiago","yellows":7,"reds":0,"pts":7},{"player":"Brobbey","yellows":5,"reds":0,"pts":5},{"player":"Bruno G.","yellows":5,"reds":0,"pts":5},{"player":"Foden","yellows":4,"reds":0,"pts":4}]},
+  "Cucurellas shampoo":  {"yellows":47,"reds":3,"total_pts_lost":56,"top_offenders":[{"player":"Cucurella","yellows":7,"reds":0,"pts":7},{"player":"Chalobah","yellows":1,"reds":1,"pts":4},{"player":"Van de Ven","yellows":4,"reds":0,"pts":4},{"player":"O'Brien","yellows":1,"reds":1,"pts":4},{"player":"Buendía","yellows":3,"reds":0,"pts":3}]},
+  "Gunha":               {"yellows":54,"reds":3,"total_pts_lost":63,"top_offenders":[{"player":"Andersen","yellows":5,"reds":1,"pts":8},{"player":"Enzo","yellows":7,"reds":0,"pts":7},{"player":"B.Fernandes","yellows":5,"reds":0,"pts":5},{"player":"Fofana","yellows":2,"reds":1,"pts":5},{"player":"Anderson","yellows":4,"reds":0,"pts":4}]},
+  "Hwang Hee Chan Fan":  {"yellows":51,"reds":2,"total_pts_lost":57,"top_offenders":[{"player":"Konaté","yellows":6,"reds":0,"pts":6},{"player":"Mbeumo","yellows":4,"reds":0,"pts":4},{"player":"Donnarumma","yellows":4,"reds":0,"pts":4},{"player":"Enzo","yellows":3,"reds":0,"pts":3},{"player":"Calvert-Lewin","yellows":3,"reds":0,"pts":3}]},
+  "Luca and the Rats":   {"yellows":62,"reds":0,"total_pts_lost":62,"top_offenders":[{"player":"Muñoz","yellows":7,"reds":0,"pts":7},{"player":"Alderete","yellows":4,"reds":0,"pts":4},{"player":"Richarlison","yellows":4,"reds":0,"pts":4},{"player":"Anderson","yellows":4,"reds":0,"pts":4},{"player":"Kroupi.Jr","yellows":4,"reds":0,"pts":4}]},
+  "Seskoffender":        {"yellows":59,"reds":1,"total_pts_lost":62,"top_offenders":[{"player":"Garner","yellows":8,"reds":0,"pts":8},{"player":"Senesi","yellows":7,"reds":0,"pts":7},{"player":"Cash","yellows":5,"reds":0,"pts":5},{"player":"Szoboszlai","yellows":5,"reds":0,"pts":5},{"player":"Calafiori","yellows":4,"reds":0,"pts":4}]},
+  "Sometime maybe sheet":{"yellows":52,"reds":2,"total_pts_lost":58,"top_offenders":[{"player":"Van de Ven","yellows":5,"reds":1,"pts":8},{"player":"Van Hecke","yellows":8,"reds":0,"pts":8},{"player":"Truffert","yellows":5,"reds":0,"pts":5},{"player":"Pedro Porro","yellows":4,"reds":0,"pts":4},{"player":"Xavi","yellows":1,"reds":1,"pts":4}]},
+  "Sonnie":              {"yellows":52,"reds":1,"total_pts_lost":55,"top_offenders":[{"player":"Rogers","yellows":7,"reds":0,"pts":7},{"player":"Tarkowski","yellows":6,"reds":0,"pts":6},{"player":"Pedro Porro","yellows":4,"reds":0,"pts":4},{"player":"Schade","yellows":1,"reds":1,"pts":4},{"player":"Thiaw","yellows":3,"reds":0,"pts":3}]},
+  "Strikersfc":          {"yellows":50,"reds":4,"total_pts_lost":62,"top_offenders":[{"player":"Gordon","yellows":3,"reds":1,"pts":6},{"player":"Szoboszlai","yellows":3,"reds":1,"pts":6},{"player":"João Pedro","yellows":5,"reds":0,"pts":5},{"player":"Sánchez","yellows":2,"reds":1,"pts":5},{"player":"J.Timber","yellows":4,"reds":0,"pts":4}]},
+  "The Blues":           {"yellows":57,"reds":4,"total_pts_lost":69,"top_offenders":[{"player":"Burn","yellows":6,"reds":1,"pts":9},{"player":"Caicedo","yellows":5,"reds":1,"pts":8},{"player":"Lacroix","yellows":4,"reds":1,"pts":7},{"player":"Collins","yellows":6,"reds":0,"pts":6},{"player":"Xhaka","yellows":6,"reds":0,"pts":6}]}
+};
+
+function getManagerName(teamKey) {
+  const t = Object.values(MATCH_RAW).find(m =>
+    Object.keys(MATCH_RAW).some(k => MATCH_RAW[k] === m) ||
+    tableData.find(td => td.team_name === m.first_name)
+  );
+  // Map team entry_name → manager first name via tableData
+  const td = tableData.find(row => row.team_name === (MATCH_RAW[Object.keys(MATCH_RAW).find(k => MATCH_RAW[k].team_name === teamKey)] || {}).team_name);
+  return td ? td.first_name : teamKey;
+}
+
+// Build manager name lookup from tableData
+function managerFor(entryName) {
+  // tableData has first_name field, match via MATCH_RAW first_name == entry_name short mapping
+  // Simpler: build lookup once
+  if (!window._mgr) {
+    window._mgr = {};
+    Object.values(MATCH_RAW).forEach(m => {
+      // MATCH_RAW keys are entry_ids; m.team_name is manager first name
+      // player_scores entry_name values are team names like "Change Name"
+      // cross-reference via WAIVER_DATA which uses manager first names as keys
+      // and has total matching total_pts_for in MATCH_RAW
+      Object.keys(WAIVER_DATA).forEach(mgr => {
+        if (WAIVER_DATA[mgr].total === m.total_pts_for) window._mgr[mgr] = m;
+      });
+    });
+  }
+  // Find manager first name from tableData by entry name
+  const found = tableData.find(r => {
+    const wd = Object.entries(WAIVER_DATA).find(([k,v]) => v.total === r.total_pts_for);
+    return wd && wd[0] === Object.keys(WAIVER_DATA).find(k => {
+      // try matching via team totals
+      return false;
+    });
+  });
+  // Direct approach: MATCH_RAW has first_name matching WAIVER_DATA keys
+  const directMgr = Object.values(MATCH_RAW).find(m => {
+    // check if this team's waiver data matches entry_name via pick count etc
+    const wkey = Object.keys(WAIVER_DATA).find(k => WAIVER_DATA[k].total === m.total_pts_for);
+    return wkey === entryName;
+  });
+  if (directMgr) return directMgr.first_name;
+  // Fallback: use first word of entry name
+  return entryName.split(' ')[0];
+}
+
+// Better: build a static entry_name → manager_first_name map
+const ENTRY_TO_MANAGER = {
+  "Change Name":          "Antonio",
+  "Cucurellas shampoo":   "Braden",
+  "Gunha":                "Jackson",
+  "Hwang Hee Chan Fan":   "Christian",
+  "Luca and the Rats":    "Luca",
+  "Seskoffender":         "Cole",
+  "Sometime maybe sheet": "Eriq",
+  "Sonnie":               "Colin",
+  "Strikersfc":           "Evan",
+  "The Blues":            "Renato"
+};
+
+function buildInjuryChart() {
+  const sorted = Object.entries(INJURY_DATA)
+    .map(([team, d]) => ({team, manager: ENTRY_TO_MANAGER[team]||team, d}))
+    .sort((a, b) => b.d.total_pts_lost - a.d.total_pts_lost);
+
+  const labels  = sorted.map(s => s.manager);
+  const vals    = sorted.map(s => s.d.total_pts_lost);
+  const h1vals  = sorted.map(s => s.d.h1_pts_lost);
+  const h2vals  = sorted.map(s => s.d.h2_pts_lost);
+  const colors  = sorted.map(s => PLAYER_COLORS[s.manager] || '#4fa3ff');
+
+  new Chart(document.getElementById('injuryChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {label:'H1 (GW1–19)', data:h1vals, backgroundColor:colors.map(c=>c+'99'), borderWidth:0, borderRadius:3, stack:'s'},
+        {label:'H2 (GW20–38)',data:h2vals, backgroundColor:colors.map(c=>c+'DD'), borderWidth:0, borderRadius:3, stack:'s'}
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins: {
+        legend:{ labels:{ color:'#666', font:{size:10}, boxWidth:10, padding:10 }, display:true },
+        tooltip:{
+          backgroundColor:'rgba(10,22,40,.95)', borderColor:'#2a5298', borderWidth:1,
+          titleColor:'#e8f0fe', bodyColor:'#8aabce',
+          callbacks:{
+            title: ctx => `${ctx[0].label} — ${vals[ctx[0].dataIndex]} pts lost`,
+            label: ctx => `${ctx.dataset.label}: ${ctx.raw} pts`,
+            afterBody: ctx => {
+              const d = sorted[ctx[0].dataIndex].d;
+              return [
+                `Games missed: ${d.total_igm}`,
+                '─────────────────',
+                ...d.top_players.map(p => `  ${p.player}: ${p.pts_lost}pts (${p.weeks}wk × ${p.ppg}ppg)`)
+              ];
+            }
+          }
+        }
+      },
+      scales:{
+        x:{ stacked:true, grid:{display:false}, ticks:{color:'#7aa7d9',font:{size:11,weight:'600'}} },
+        y:{ stacked:true, grid:{color:'rgba(255,255,255,.04)'}, ticks:{color:'#555',font:{size:10}},
+            title:{display:true,text:'Est. Points Lost',color:'#555',font:{size:10}} }
+      }
+    }
+  });
+
+  // Detail cards
+  const detailEl = document.getElementById('injuryDropDetail');
+  detailEl.innerHTML = sorted.map(({team, manager, d}) => {
+    const color = PLAYER_COLORS[manager] || '#4fa3ff';
+    const bg    = PLAYER_BG[manager] || '#0d1e35';
+    const rows  = d.top_players.map(p => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:10px">
+        <div>
+          <span style="font-weight:600;color:var(--text)">${p.player}</span>
+          <span style="color:var(--text3);margin-left:6px">${p.weeks}w × ${p.ppg} ppg</span>
+        </div>
+        <span style="font-family:'DM Mono',monospace;font-weight:600;color:var(--red)">−${p.pts_lost}</span>
+      </div>`).join('');
+    return `<div style="background:var(--bg3);border:1px solid ${color}33;border-radius:var(--r);padding:10px 12px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <div style="width:24px;height:24px;border-radius:4px;background:${bg};color:${color};border:1px solid ${color}55;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:800">${manager.substring(0,2).toUpperCase()}</div>
+        <div style="font-weight:700;font-size:12px">${manager}</div>
+        <div style="font-size:9px;color:var(--text3);margin-left:4px">${d.total_igm} games missed</div>
+        <div style="margin-left:auto;font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--red)">−${d.total_pts_lost}</div>
+      </div>
+      <div style="display:flex;gap:10px;font-size:9px;color:var(--text3);margin-bottom:8px">
+        <span>H1: <b style="color:var(--blue)">${d.h1_pts_lost}</b></span>
+        <span>H2: <b style="color:var(--teal)">${d.h2_pts_lost}</b></span>
+      </div>
+      ${rows}
+    </div>`;
+  }).join('');
+}
+
+function buildCardsChart() {
+  const sorted = Object.entries(CARDS_DATA)
+    .map(([team, d]) => ({team, manager: ENTRY_TO_MANAGER[team]||team, d}))
+    .sort((a, b) => b.d.total_pts_lost - a.d.total_pts_lost);
+
+  const labels  = sorted.map(s => s.manager);
+  const yellows = sorted.map(s => s.d.yellows);
+  const reds    = sorted.map(s => s.d.reds);
+  const colors  = sorted.map(s => PLAYER_COLORS[s.manager] || '#4fa3ff');
+
+  new Chart(document.getElementById('cardsChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {label:'Yellows (−1pt)', data:yellows, backgroundColor:'rgba(253,224,71,.7)', borderWidth:0, borderRadius:3, stack:'s'},
+        {label:'Reds (−3pts)',   data:reds,    backgroundColor:'rgba(239,68,68,.75)',  borderWidth:0, borderRadius:3, stack:'s'}
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins: {
+        legend:{ labels:{ color:'#666', font:{size:10}, boxWidth:10, padding:10 }, display:true },
+        tooltip:{
+          backgroundColor:'rgba(10,22,40,.95)', borderColor:'#2a5298', borderWidth:1,
+          titleColor:'#e8f0fe', bodyColor:'#8aabce',
+          callbacks:{
+            title: ctx => `${ctx[0].label} — ${sorted[ctx[0].dataIndex].d.total_pts_lost} pts lost`,
+            label: ctx => `${ctx.dataset.label}: ${ctx.raw}`,
+            afterBody: ctx => {
+              const d = sorted[ctx[0].dataIndex].d;
+              return [
+                `Total: ${d.yellows}Y  ${d.reds}R  =  −${d.total_pts_lost}pts`,
+                '─────────────────',
+                ...d.top_offenders.map(p => `  ${p.player}: ${p.yellows}Y ${p.reds}R = −${p.pts}pts`)
+              ];
+            }
+          }
+        }
+      },
+      scales:{
+        x:{ stacked:true, grid:{display:false}, ticks:{color:'#7aa7d9',font:{size:11,weight:'600'}} },
+        y:{ stacked:true, grid:{color:'rgba(255,255,255,.04)'}, ticks:{color:'#555',font:{size:10}},
+            title:{display:true,text:'Cards Received',color:'#555',font:{size:10}} }
+      }
+    }
+  });
+
+  // Detail cards
+  const detailEl = document.getElementById('cardsDetail');
+  detailEl.innerHTML = sorted.map(({team, manager, d}) => {
+    const color = PLAYER_COLORS[manager] || '#4fa3ff';
+    const bg    = PLAYER_BG[manager] || '#0d1e35';
+    const rows  = d.top_offenders.map(p => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:10px">
+        <div>
+          <span style="font-weight:600;color:var(--text)">${p.player}</span>
+          ${p.yellows>0?`<span style="margin-left:5px;font-size:8px;font-weight:700;padding:1px 4px;border-radius:2px;background:rgba(253,224,71,.15);color:#fde047">${p.yellows}Y</span>`:''}
+          ${p.reds>0?`<span style="margin-left:3px;font-size:8px;font-weight:700;padding:1px 4px;border-radius:2px;background:rgba(239,68,68,.15);color:#f87171">${p.reds}R</span>`:''}
+        </div>
+        <span style="font-family:'DM Mono',monospace;font-weight:600;color:var(--warn)">−${p.pts}</span>
+      </div>`).join('');
+    return `<div style="background:var(--bg3);border:1px solid ${color}33;border-radius:var(--r);padding:10px 12px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <div style="width:24px;height:24px;border-radius:4px;background:${bg};color:${color};border:1px solid ${color}55;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:800">${manager.substring(0,2).toUpperCase()}</div>
+        <div style="font-weight:700;font-size:12px">${manager}</div>
+        <span style="font-size:9px;color:var(--text3);margin-left:4px">${d.yellows}Y · ${d.reds}R</span>
+        <div style="margin-left:auto;font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--warn)">−${d.total_pts_lost}</div>
+      </div>
+      ${rows}
+    </div>`;
+  }).join('');
 }
 
 // ── PROFILES ──
